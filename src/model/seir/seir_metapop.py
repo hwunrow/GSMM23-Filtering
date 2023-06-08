@@ -1,11 +1,12 @@
 import numpy as np
+from numpy.random import poisson
 import matplotlib.pyplot as plt
 import pickle
 import inspect
 import logging
 
 
-class seir_metapop():
+class simualte_data():
     def __init__(
             self, n_t, n_loc, beta, mu, Z, D, alpha, N, E0, Iu0, **kwargs
             ):
@@ -44,7 +45,7 @@ class seir_metapop():
             self.i, self.i_true = self.gen_stoch_seir_metapop()
 
     def gen_stoch_seir_metapop(
-            self, add_noise=False, noise_param=1/25
+            self, add_noise=False, noise_param=1/50
             ):
         S = self.S0
         E = self.E0
@@ -52,12 +53,13 @@ class seir_metapop():
         Iu = self.Iu0
         R = self.R0
 
-        S_list = [S]
-        E_list = [E]
-        Ir_list = [Ir]
-        Iu_list = [Iu]
-        R_list = [R]
-        i_list = np.zeros([0])
+        S_list = np.sum(self.S0, axis=1)
+        E_list = np.sum(self.E0, axis=1)
+        Ir_list = np.sum(self.Ir0, axis=1)
+        Iu_list = np.sum(self.Iu0, axis=1)
+        R_list = np.sum(self.R0, axis=1)
+        i_true = np.zeros(self.n_loc)
+        i_list = np.zeros(self.n_loc)
 
         # Time
         dt_day = 1 / 3
@@ -69,98 +71,108 @@ class seir_metapop():
             tspan[2*i+1] = i + dt_day
         tspan[-1] = self.n_t
 
-        daytime_i = 0
         for t in tspan:
             if t % 1 == 0:  # daytime
+                daytime_i = np.zeros(self.n_loc)
+                daytime_i = np.zeros(self.n_loc)
                 # Loop over destination
                 for i in range(self.n_loc):
                     # Day time population
-                    N_i = np.sum(self.N[i, :]) + np.sum(Ir[:, i]) - np.sum(Ir[i, :])
+                    N_i = np.sum(self.N[i, :]) + np.sum(Ir[:, i]) - \
+                        np.sum(Ir[i, :])
 
                     # Loop over origin
                     for j in range(self.n_loc):
-                        dSE = np.random.poisson(self.beta[i]*S[i, j]*(np.sum(Ir[:, i])+self.mu*np.sum(Iu[i, :]))/N_i)
-                        dEI = np.random.poisson(E[i, j]/self.Z)
-                        dIrR = np.random.poisson(Ir[i, j]/self.D)
-                        dIuR = np.random.poisson(Iu[i, j]/self.D)
+                        dSE = poisson(self.beta[i]*S[i, j]*(np.sum(Ir[:, i]) +
+                                      self.mu*np.sum(Iu[i, :]))/N_i)
+                        dEI = poisson(E[i, j]/self.Z)
+                        dIrR = poisson(Ir[i, j]/self.D)
+                        dIuR = poisson(Iu[i, j]/self.D)
 
-                        S = np.clip(S-dSE, 0, self.N)
-                        E = np.clip(E+dSE-dEI, 0, self.N)
-                        Ir = np.clip(Ir+dEI*self.alpha-dIrR, 0, self.N)
-                        Iu = np.clip(Iu+dEI*(1-self.alpha)-dIuR, 0, self.N)
-                        R = np.clip(R+dIrR+dIuR, 0, self.N)
+                        S[i, j] = np.clip(S[i, j] - dSE,
+                                          0, np.sum(self.N[i, :]))
+                        E[i, j] = np.clip(E[i, j] + dSE - dEI,
+                                          0, np.sum(self.N[i, :]))
+                        Ir[i, j] = np.clip(Ir[i, j] + dEI*self.alpha - dIrR,
+                                           0, np.sum(self.N[i, :]))
+                        Iu[i, j] = np.clip(Iu[i, j] + dEI*(1-self.alpha) -
+                                           dIuR,
+                                           0, np.sum(self.N[i, :]))
+                        R[i, j] = np.clip(R[i, j] + dIrR + dIuR,
+                                          0, np.sum(self.N[i, :]))
 
-                        S_list = np.append(S_list, S)
-                        E_list = np.append(E_list, E)
-                        Ir_list = np.append(Ir_list, Ir)
-                        Iu_list = np.append(Iu_list, Iu)
-                        R_list = np.append(R_list, R)
-                        daytime_t+= dEI*self.alpha
+                        daytime_i[i] += dEI*self.alpha
 
             else:  # nighttime
+                nighttime_i = np.zeros(self.n_loc)
                 # loop over destination
                 for i in range(self.n_loc):
                     # loop over origin
                     for j in range(self.n_loc):
                         # night time population
                         N_j = np.sum(self.N[:, j])
-                        dSE = np.random.poisson(self.beta[i]*S[i, j]*(np.sum(Ir[:, i])+self.mu*np.sum(Iu[i, :]))/N_j)
-                        dEI = np.random.poisson(E[i, j]/self.Z)
-                        dIrR = np.random.poisson(Ir[i, j]/self.D)
-                        dIuR = np.random.poisson(Iu[i, j]/self.D)
+                        dSE = poisson(self.beta[i]*S[i, j]*(np.sum(Ir[:, i]) +
+                                      self.mu*np.sum(Iu[i, :]))/N_j)
+                        dEI = poisson(E[i, j]/self.Z)
+                        dIrR = poisson(Ir[i, j]/self.D)
+                        dIuR = poisson(Iu[i, j]/self.D)
 
-                        S = np.clip(S-dSE, 0, self.N)
-                        E = np.clip(E+dSE-dEI, 0, self.N)
-                        Ir = np.clip(Ir+dEI*self.alpha-dIrR, 0, self.N)
-                        Iu = np.clip(Iu+dEI*(1-self.alpha)-dIuR, 0, self.N)
-                        R = np.clip(R+dIrR+dIuR, 0, self.N)
+                        S[i, j] = np.clip(S[i, j] - dSE,
+                                          0, np.sum(self.N[i, :]))
+                        E[i, j] = np.clip(E[i, j] + dSE - dEI,
+                                          0, np.sum(self.N[i, :]))
+                        Ir[i, j] = np.clip(Ir[i, j] + dEI*self.alpha - dIrR,
+                                           0, np.sum(self.N[i, :]))
+                        Iu[i, j] = np.clip(Iu[i, j] + dEI*(1-self.alpha) -
+                                           dIuR, 0, np.sum(self.N[i, :]))
+                        R[i, j] = np.clip(R[i, j] + dIrR + dIuR,
+                                          0, np.sum(self.N[i, :]))
 
-                        S_list = np.append(S_list, S)
-                        E_list = np.append(E_list, E)
-                        Ir_list = np.append(Ir_list, Ir)
-                        Iu_list = np.append(Iu_list, Iu)
-                        R_list = np.append(R_list, R)
-                        
-                    i_list = np.append(i_list, dEI*self.alpha)
+                        nighttime_i[i] += dEI*self.alpha
+                S_list = np.vstack([S_list, np.sum(S, axis=1)])
 
-                    if add_noise:
-                        i = i.astype('float64')
-                        self.noise_param = noise_param
-                        obs_error_var = np.maximum(1., i[1:]**2 * noise_param)
-                        obs_error_sample = np.random.normal(0, 1, size=self.n_t)
-                        i[1:] += obs_error_sample * np.sqrt(obs_error_var)
-                        i = np.clip(i, 0, self.N)
+                E_list = np.vstack([E_list, np.sum(E, axis=1)])
+                Ir_list = np.vstack([Ir_list, np.sum(Ir, axis=1)])
+                Iu_list = np.vstack([Iu_list, np.sum(Iu, axis=1)])
+                R_list = np.vstack([R_list, np.sum(R, axis=1)])
+                i_true = np.vstack([i_true, daytime_i + nighttime_i])
 
-        return S_list, E_list, Ir_list, Iu_list, R_list, i_list, i_true
+            if add_noise:
+                self.noise_param = noise_param
+                obs_error_var = np.maximum(1.,
+                                           np.array(i_true)**2 * noise_param)
+                obs_error_sample = np.random.normal(0, 1, size=self.n_t)
+                i_true += obs_error_sample * np.sqrt(obs_error_var)
+                i_list = np.clip(i_true, 0, self.N)
 
-    def plot_state(self, ax=None):
-        if not ax:
-            fig, ax = plt.subplots()
-        ax.plot(self.S, '.-', label='S')
-        ax.plot(self.E, '.-', label='E')
-        ax.plot(self.Ir, '.-', label='Ir')
-        ax.plot(self.Iu, '.-', label='Iu')
-        ax.plot(self.R, '.-', label='R')
-        ax.set_title('Stochastic SEIrIuR')
-        ax.legend()
+        return S_list, E_list, Ir_list, Iu_list, R_list, i_true, i_list
 
-    def plot_obs(self, ax=None):
-        if not ax:
-            fig, ax = plt.subplots()
-        ax.plot(self.i, '.')
-        ax.set_title('Stochastic Daily Case Counts')
+    def plot_state(self, axs=None):
+        for i, ax in enumerate(axs):
+            ax.plot(self.S[:, i], '.-', label='S')
+            ax.plot(self.E[:, i], '.-', label='E')
+            ax.plot(self.Ir[:, i], '.-', label='Ir')
+            ax.plot(self.Iu[:, i], '.-', label='Iu')
+            ax.plot(self.R[:, i], '.-', label='R')
+            ax.set_title(f'Location {i} Stochastic SEIrIuR')
+            ax.legend()
+
+    def plot_obs(self, axs=None):
+        for i, ax in enumerate(axs):
+            ax.plot(self.i[:, i], '.')
+            ax.set_title(f'Location {i} Stochastic Daily Case Counts')
 
     def plot_all(self, path=None):
-        fig, axs = plt.subplots(2, 1, sharex=True, figsize=(10, 10))
-        self.plot_state(axs[0])
-        self.plot_obs(axs[1])
+        fig, axs = plt.subplots(self.n_loc, 2, sharex=True, figsize=(10, 50))
+        self.plot_state(axs[:, 0])
+        self.plot_obs(axs[:, 1])
 
         if path:
             plt.savefig(f'{path}/synthetic_data.pdf')
 
     def save_data(self, path=None):
         # log source code
-        lines = inspect.getsource(seir_metapop)
+        lines = inspect.getsource(simualte_data)
         logging.info(lines)
         with open(f'{path}/data.pkl', 'wb') as file:
             pickle.dump(self, file, pickle.HIGHEST_PROTOCOL)

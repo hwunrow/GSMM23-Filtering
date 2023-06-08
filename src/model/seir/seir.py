@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.random import poisson
 import matplotlib.pyplot as plt
 import pickle
 import inspect
@@ -31,7 +32,7 @@ class simualte_data():
 
         self.N = N
         self.S0 = (N - E0 - Iu0)
-        self.E0 = E0 
+        self.E0 = E0
         self.Ir0 = 0
         self.Iu0 = Iu0
         self.R0 = 0
@@ -49,10 +50,10 @@ class simualte_data():
         R = np.array([self.R0])
         i = np.array([0])
         for t in range(self.n_t):
-            dSE = np.random.poisson(self.beta*S[t]*(Ir[t]+self.mu*Iu[t])/self.N)
-            dEI = np.random.poisson(E[t]/self.Z)
-            dIrR = np.random.poisson(Ir[t]/self.D)
-            dIuR = np.random.poisson(Iu[t]/self.D)
+            dSE = poisson(self.beta*S[t]*(Ir[t]+self.mu*Iu[t])/self.N)
+            dEI = poisson(E[t]/self.Z)
+            dIrR = poisson(Ir[t]/self.D)
+            dIuR = poisson(Iu[t]/self.D)
 
             S_new = np.clip(S[t]-dSE, 0, self.N)
             E_new = np.clip(E[t]+dSE-dEI, 0, self.N)
