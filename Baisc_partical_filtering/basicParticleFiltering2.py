@@ -28,7 +28,7 @@ def resampling(w,N):
 def gaussian_log_likelihood(data, trial, measurement_noise):
     arg = data - trial
     f = mvnorm.pdf(arg, mean=None, cov=measurement_noise)
-    return log(f)+
+    return log(f)
 
 
 def particle_std_start(num_particles, prior, measurement_model, log_likelihood, data, measurement_noise):
