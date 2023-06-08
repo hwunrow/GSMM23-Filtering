@@ -82,8 +82,10 @@ def particle_std_iter(num_particles, points, measurement_model, log_likelihood, 
 
 
 def particle_std(num_particles, num_iter, prior, measurement_model, log_likelihood, data, measurement_noise):
+    estimates = []
     points, weights = particle_std_start(num_particles, prior, measurement_model,
                                          log_likelihood, data, measurement_noise)
+    estimates.append(points)
     for k in range(num_iter):
         I = resampling(weights,num_particles)
         ## assign new particles according to I, which is a list of indices
@@ -94,5 +96,6 @@ def particle_std(num_particles, num_iter, prior, measurement_model, log_likeliho
         ## run the algorithm again
         points, weights = particle_std_iter(num_particles, new_points, measurement_model,
                                             log_likelihood, data, measurement_noise)
+        estimates.append(points)
 
-    return points
+    return estimates
