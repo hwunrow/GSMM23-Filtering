@@ -2,12 +2,6 @@ import math
 import random
 import numpy as np
 
-import importlib
-import sys
-import os
-import matplotlib.pyplot as plt
-import seir
-importlib.reload(seir)
 true_params = {
             'beta': 2.1,
             'mu': 0.5,
@@ -21,20 +15,15 @@ true_params = {
         }
 
 
-
-
-
-def forecase(t, x, N, dt=1, noise_param=1/25):
+def forecast(t, x, N, dt=1, noise_param=1/25):
     """
     forecast step
-    
     """
-    # import pdb; pdb.set_trace()
-    S=x[0]
-    E=x[1]
-    Ir=x[2]
-    Iu=x[3]
-    R=x[4]
+    S = x[0]
+    E = x[1]
+    Ir = x[2]
+    Iu = x[3]
+    R = x[4]
     # Stochastic transitions
     dSE = np.random.poisson(true_params["beta"]*S*(Ir+true_params['mu']*Iu)/true_params['N'])
     dEI = np.random.poisson(E/true_params['Z'])
@@ -59,22 +48,18 @@ def f0(N, m=300):
             N: population
             m: number of ensemble members
     """
-
     S0 = np.random.uniform(N*0.8, N, size=m)
     E0 = np.zeros(m)
     Ir0 = np.zeros(m)
     Iu0 = N - S0
     R0 = np.zeros(m)
     i0 = np.zeros(m)
-    
+ 
     # x = np.concatenate((S0, E0, Ir0, Iu0, R0, i0))
     x=np.row_stack((S0, E0, Ir0, Iu0, R0, i0))
     return x
 
-
-
-# 
-def resample(w,I):
+def resample(w, I):
     w=[0]*6
     w_hat=[0]*6
     N=len(w)
@@ -151,15 +136,16 @@ if __name__ == "__main__":
     data = seir.simualte_data(**true_params, add_noise=True, noise_param=1/50)
     data.plot_all(path='./figures')
 
-    with open('test_data.npy', 'wb') as f:
+    with open('../model/seir/test_data.npy', 'wb') as f:
         np.save(f, data.i)
     x=f0(100)
     N=100000
     pt=[]
     # import pdb; pdb.set_trace()
-    for t in range(100):
+    x1=forecase(t,x,N)
+    for t in range(1, 100):
         # import pdb; pdb.set_trace()
-        x1=forecase(t,x,N)
+        x1=forecase(t,x1,N)
         # print('before')
         # print(x1)
         try:
