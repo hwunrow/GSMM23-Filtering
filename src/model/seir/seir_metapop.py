@@ -25,24 +25,39 @@ class simualte_data():
         """
         self.n_t = n_t
         self.n_loc = n_loc
-
-        self.beta = beta
-        if len(beta) != n_loc:
-            raise Exception(f"there should be {n_loc} beta")
+        if beta is not None:
+            self.beta = np.repeat([beta], n_t, axis=0)
+        else:
+            initial_betas = np.array([2, 2.5, 2.9, 3, 2, 1.7, 6, 3., 3, 2, 2.5, 3., 3, 5.5, 2, 3.2, 5.1])
+            end_betas = initial_betas + 2
+            beta = []
+            for i in range(n_loc):
+                beta.append(self.sigmoid(initial_betas[i], end_betas[i]))
+            self.beta = np.transpose(np.array(beta))
         self.mu = mu
         self.Z = Z
         self.D = D
         self.alpha = alpha
 
+        seed_loc = 2
         self.N = N
-        self.S0 = (N - E0 - Iu0) * np.ones((n_loc, n_loc))
         self.E0 = E0 * np.ones((n_loc, n_loc))
         self.Ir0 = np.zeros((n_loc, n_loc))
-        self.Iu0 = Iu0 * np.ones((n_loc, n_loc))
+        self.Iu0 = np.zeros((n_loc, n_loc))
+        self.Iu0[seed_loc, seed_loc] = Iu0
         self.R0 = np.zeros((n_loc, n_loc))
+        self.S0 = N - E0 - Iu0
 
         self.S, self.E, self.Ir, self.Iu, self.R, \
             self.i, self.i_true = self.gen_stoch_seir_metapop()
+
+    def sigmoid(self, b_0, b_1):
+        """Computes sigmoid curve"""
+        t = np.arange(0, self.n_t)
+        k = 0.1
+        midpoint = self.n_t/2
+        sigmoid = b_0 + (b_1 - b_0) / (1 + np.exp(-k*(t - midpoint)))
+        return sigmoid
 
     def gen_stoch_seir_metapop(
             self, add_noise=False, noise_param=1/50
@@ -83,8 +98,11 @@ class simualte_data():
 
                     # Loop over origin
                     for j in range(self.n_loc):
-                        dSE = poisson(self.beta[i]*S[i, j]*(np.sum(Ir[:, i]) +
-                                      self.mu*np.sum(Iu[i, :]))/N_i)
+                        t_index = np.minimum(np.floor(t).astype(int),
+                                             self.n_t-1)
+                        dSE = poisson(self.beta[t_index][i]*S[i, j] *
+                                      (np.sum(Ir[:, i]) +
+                                       self.mu*np.sum(Iu[i, :]))/N_i)
                         dEI = poisson(E[i, j]/self.Z)
                         dIrR = poisson(Ir[i, j]/self.D)
                         dIuR = poisson(Iu[i, j]/self.D)
@@ -111,7 +129,10 @@ class simualte_data():
                     for j in range(self.n_loc):
                         # night time population
                         N_j = np.sum(self.N[:, j])
-                        dSE = poisson(self.beta[i]*S[i, j]*(np.sum(Ir[:, i]) +
+                        t_index = np.minimum(np.floor(t).astype(int),
+                                             self.n_t-1)
+                        dSE = poisson(self.beta[t_index][i]*S[i, j] *
+                                      (np.sum(Ir[:, i]) +
                                       self.mu*np.sum(Iu[i, :]))/N_j)
                         dEI = poisson(E[i, j]/self.Z)
                         dIrR = poisson(Ir[i, j]/self.D)
