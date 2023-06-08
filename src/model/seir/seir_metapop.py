@@ -121,7 +121,6 @@ class seir_metapop():
                         Iu_list = np.append(Iu_list, Iu)
                         R_list = np.append(R_list, R)
                         
-
                     i_list = np.append(i_list, dEI*self.alpha)
 
                     if add_noise:
