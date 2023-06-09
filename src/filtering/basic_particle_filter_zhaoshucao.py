@@ -72,10 +72,11 @@ def resample(w, I):
         while u > w_hat[k]:
             k = k+1
             if k == len(w_hat):
+                k=k-1
                 break
         I[j] = k
         u = u+1/N
-        k = 1
+        k = 0
 # C: random measurement noise
 # H(z): model function provided by modeler
 
