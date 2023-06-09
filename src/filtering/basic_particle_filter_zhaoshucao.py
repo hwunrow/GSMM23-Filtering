@@ -61,8 +61,8 @@ def f0(N, m=300):
 
 
 def resample(w, I):
-    w = [0]*6
-    w_hat = [0]*6
+    
+    w_hat = [0]*300
     N = len(w)
     for j in range(1, N):
         w_hat[j] = sum(w[0:j+1])
