@@ -28,8 +28,10 @@ class simualte_data():
         if beta is not None:
             self.beta = np.repeat([beta], n_t, axis=0)
         else:
-            initial_betas = np.array([2, 2.5, 2.9, 3, 2, 1.7, 6, 3., 3, 2, 2.5, 3., 3, 5.5, 2, 3.2, 5.1])
-            end_betas = initial_betas + 2
+            initial_betas = np.array([0.2, 2.5, 0.35, 3, 2, 1.7, 0.6, 3., 0.3, 2, 2.5,
+                                      3., 3, 5.5, 2, 3.2, 5.1])
+            end_betas = np.array([0.5, 0.5, 0.75, 9, 7, 3.7, 2, 3., 2., 5, 6.5,
+                                      2., 3, 4.5, 2, 3.8, 5.1])
             beta = []
             for i in range(n_loc):
                 beta.append(self.sigmoid(initial_betas[i], end_betas[i]))
@@ -55,12 +57,12 @@ class simualte_data():
         """Computes sigmoid curve"""
         t = np.arange(0, self.n_t)
         k = 0.1
-        midpoint = self.n_t/2
+        midpoint = 30
         sigmoid = b_0 + (b_1 - b_0) / (1 + np.exp(-k*(t - midpoint)))
         return sigmoid
 
     def gen_stoch_seir_metapop(
-            self, add_noise=False, noise_param=1/50
+            self, add_noise=True, noise_param=1/50
             ):
         S = self.S0
         E = self.E0
@@ -158,35 +160,47 @@ class simualte_data():
                 R_list = np.vstack([R_list, np.sum(R, axis=1)])
                 i_true = np.vstack([i_true, daytime_i + nighttime_i])
 
-            if add_noise:
-                self.noise_param = noise_param
-                obs_error_var = np.maximum(1.,
-                                           np.array(i_true)**2 * noise_param)
-                obs_error_sample = np.random.normal(0, 1, size=self.n_t)
-                i_true += obs_error_sample * np.sqrt(obs_error_var)
-                i_list = np.clip(i_true, 0, self.N)
+        if add_noise:
+            self.noise_param = noise_param
+            obs_error_var = np.maximum(1., i_true**2 * noise_param)
+            for t in range(self.n_t):
+                obs_error_sample = np.random.normal(0, 1, size=self.n_loc)
+                i_true[t, :] += obs_error_sample * np.sqrt(obs_error_var[t, :])
+
+            i_list = i_true.copy()
 
         return S_list, E_list, Ir_list, Iu_list, R_list, i_true, i_list
 
-    def plot_state(self, axs=None):
-        for i, ax in enumerate(axs):
-            ax.plot(self.S[:, i], '.-', label='S')
-            ax.plot(self.E[:, i], '.-', label='E')
-            ax.plot(self.Ir[:, i], '.-', label='Ir')
-            ax.plot(self.Iu[:, i], '.-', label='Iu')
-            ax.plot(self.R[:, i], '.-', label='R')
-            ax.set_title(f'Location {i} Stochastic SEIrIuR')
-            ax.legend()
+    def plot_state(self, ax=None, i=None):
+        max_y = np.max(self.S) + 500
+        ax.plot(self.S[:, i], '.-', label='S')
+        ax.plot(self.E[:, i], '.-', label='E')
+        ax.plot(self.Ir[:, i], '.-', label='Ir')
+        ax.plot(self.Iu[:, i], '.-', label='Iu')
+        ax.plot(self.R[:, i], '.-', label='R')
+        ax.set_ylim(0, max_y)
+        ax.set_xlabel("day")
+        ax.set_ylabel("counts")
+        ax.set_title(f'Location {i+1} SEIrIuR')
+        ax.legend()
 
-    def plot_obs(self, axs=None):
-        for i, ax in enumerate(axs):
-            ax.plot(self.i[:, i], '.')
-            ax.set_title(f'Location {i} Stochastic Daily Case Counts')
+    def plot_obs(self, ax=None, i=None):
+        max_y = np.max(self.i) + 700
+        ax.plot(self.i[:, i], '-.')
+        ax.set_ylim(0, max_y)
+        ax.set_title(f'Location {i+1} Reported Daily Case Counts')
+        ax.set_xlabel("day")
+        ax.set_ylabel("daily case counts")
 
     def plot_all(self, path=None):
-        fig, axs = plt.subplots(self.n_loc, 2, sharex=True, figsize=(10, 50))
-        self.plot_state(axs[:, 0])
-        self.plot_obs(axs[:, 1])
+        fig, axs = plt.subplots(9, 4, sharex=True, figsize=(20, 30))
+        for i, ax in enumerate(axs.reshape(-1)):
+            if i > 33:
+                ax.remove()
+            elif i % 2 == 0:
+                self.plot_state(ax, i//2)
+            else:
+                self.plot_obs(ax, i//2)
 
         if path:
             plt.savefig(f'{path}/synthetic_data.pdf')

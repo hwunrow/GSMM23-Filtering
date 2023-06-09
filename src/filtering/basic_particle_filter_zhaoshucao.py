@@ -61,9 +61,10 @@ def f0(N, m=300):
 
 
 def resample(w, I):
-    w = [0]*6
-    w_hat = [0]*6
+    w = [0]*300
+    w_hat = [0]*300
     N = len(w)
+    w_hat[0]=w[0]
     for j in range(1, N):
         w_hat[j] = sum(w[0:j+1])
     u = random.uniform(0, 1/N)
@@ -75,7 +76,7 @@ def resample(w, I):
                 break
         I[j] = k
         u = u+1/N
-        k = 1
+        k = 0
 # C: random measurement noise
 # H(z): model function provided by modeler
 
@@ -95,6 +96,8 @@ def H(x):
 
 def likelihood(d, z_j):
     C = oev(z_j)
+    if C > 1:
+        print(C)
     if np.shape(C):
         detC = np.linalg.det(C)
         invC = np.linalg.inv(C)
@@ -116,8 +119,8 @@ def basic_p_filter(z, d):
     # z is the list of all points, nxN
     # d is the measurement vector, m
     N = len(z[0])
-    w = [0]*N
-    del_w = [0]*N
+    w = np.zeros(N)
+    del_w = np.zeros(N)
     for j in range(N):
         try:
             del_w[j] = math.log(likelihood(d, z[:, j]))
@@ -130,22 +133,28 @@ def basic_p_filter(z, d):
     sum_w = sum(del_w)
     for j in range(N):
         w[j] = del_w[j]/sum_w
-    I = [0]*N
+
+    I = np.zeros(N)
     resample(w, I)
+    new_z = z.copy()
+    I = I.astype('int')
     for j in range(N):
-        z[:, j] = z[:, I[j]]
+        new_z[:, j] = z[:, I[j]]
+    return w, new_z
 
 
 if __name__ == "__main__":
-    data = np.load('../model/seir/test_data.npy')
+    data = np.load('/Users/hwunrow/Documents/GitHub/GSMM23-Filtering/src/model/seir/test_data.npy')
     # initial ensemble
     x = f0(true_params['N'])
     x_list = [x]
+    w_list = []
     for t in range(100):
         x = forecast(t, x, true_params['N'])
-        basic_p_filter(x, data.i[t])
+        x, w = basic_p_filter(x, data[t+1])
+        w_list.append(w)
         x_list.append(x)
-    
+
     # ts = np.linspace(0, 101, num=100)
     # plt.clf()
     # plt.plot(ts, pt)
