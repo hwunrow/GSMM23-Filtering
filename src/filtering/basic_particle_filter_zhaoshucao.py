@@ -61,7 +61,11 @@ def f0(N, m=300):
 
 
 def resample(w, I):
+<<<<<<< HEAD
     w = [0]*300
+=======
+    
+>>>>>>> bd4ef72259d0a011b0c47edf1e446cda3cfcbc22
     w_hat = [0]*300
     N = len(w)
     w_hat[0]=w[0]
@@ -73,6 +77,7 @@ def resample(w, I):
         while u > w_hat[k]:
             k = k+1
             if k == len(w_hat):
+                k=k-1
                 break
         I[j] = k
         u = u+1/N
