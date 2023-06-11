@@ -51,7 +51,7 @@ class simualte_data():
         self.S0 = N - E0 - Iu0
 
         self.S, self.E, self.Ir, self.Iu, self.R, \
-            self.i, self.i_true = self.gen_stoch_seir_metapop()
+            self.i_true, self.i = self.gen_stoch_seir_metapop()
 
     def sigmoid(self, b_0, b_1):
         """Computes sigmoid curve"""
@@ -62,7 +62,7 @@ class simualte_data():
         return sigmoid
 
     def gen_stoch_seir_metapop(
-            self, add_noise=True, noise_param=1/50
+            self, add_noise=True, noise_param=1/10
             ):
         S = self.S0
         E = self.E0
@@ -159,15 +159,13 @@ class simualte_data():
                 Iu_list = np.vstack([Iu_list, np.sum(Iu, axis=1)])
                 R_list = np.vstack([R_list, np.sum(R, axis=1)])
                 i_true = np.vstack([i_true, daytime_i + nighttime_i])
-
+        i_list = i_true.copy()
         if add_noise:
             self.noise_param = noise_param
-            obs_error_var = np.maximum(1., i_true**2 * noise_param)
+            obs_error_var = np.maximum(1., i_list**2 * noise_param)
             for t in range(self.n_t):
                 obs_error_sample = np.random.normal(0, 1, size=self.n_loc)
-                i_true[t, :] += obs_error_sample * np.sqrt(obs_error_var[t, :])
-
-            i_list = i_true.copy()
+                i_list[t, :] += obs_error_sample * np.sqrt(obs_error_var[t, :])
 
         return S_list, E_list, Ir_list, Iu_list, R_list, i_true, i_list
 
@@ -178,7 +176,7 @@ class simualte_data():
         ax.plot(self.Ir[:, i], '.-', label='Ir')
         ax.plot(self.Iu[:, i], '.-', label='Iu')
         ax.plot(self.R[:, i], '.-', label='R')
-        ax.set_ylim(0, max_y)
+        # ax.set_ylim(0, max_y)
         ax.set_xlabel("day")
         ax.set_ylabel("counts")
         ax.set_title(f'Location {i+1} SEIrIuR')
@@ -186,14 +184,16 @@ class simualte_data():
 
     def plot_obs(self, ax=None, i=None):
         max_y = np.max(self.i) + 700
-        ax.plot(self.i[:, i], '-.')
-        ax.set_ylim(0, max_y)
+        ax.plot(self.i[:, i], 'x', color='black', label='noisy observations')
+        ax.plot(self.i_true[:, i], '.-.', color='orange', label='truth')
+        # ax.set_ylim(0, max_y)
         ax.set_title(f'Location {i+1} Reported Daily Case Counts')
         ax.set_xlabel("day")
         ax.set_ylabel("daily case counts")
+        ax.legend()
 
     def plot_all(self, path=None):
-        fig, axs = plt.subplots(9, 4, sharex=True, figsize=(20, 30))
+        fig, axs = plt.subplots(self.n_loc, 2, sharex=True, figsize=(20, 50))
         for i, ax in enumerate(axs.reshape(-1)):
             if i > 33:
                 ax.remove()
@@ -201,6 +201,7 @@ class simualte_data():
                 self.plot_state(ax, i//2)
             else:
                 self.plot_obs(ax, i//2)
+        fig.tight_layout()
 
         if path:
             plt.savefig(f'{path}/synthetic_data.pdf')
